@@ -134,10 +134,8 @@ public class MongoBbQuerySqlBuildService {
      * 填入要执行的操作，如ne，nin等
      * 对于属于区间值的字段，在@MongoDbField注解上添加appointField属性值，指定要查询的字段名，并添加model，如gt，lt等
      * 然后调用buildQueryCriteria方法即可
-     * ----------------------------------------------------------------------------------------
      */
-
-
+    
     public Criteria buildQueryCriteria(Object obj) {
         if (obj == null) {
             throw new RuntimeException("model is null");
@@ -147,6 +145,7 @@ public class MongoBbQuerySqlBuildService {
             beanMap = getBeanToMap(obj);
         } catch (Exception e) {
             log.error("parse model is failed");
+            throw new RuntimeException("parse model is failed");
         }
         if (beanMap.isEmpty()) {
             throw new RuntimeException("model param all is null");
@@ -187,7 +186,7 @@ public class MongoBbQuerySqlBuildService {
                 }
             });
         }
-        log.info("buildQueryCriteria result: {}", criteria.getCriteriaObject());
+        log.info("buildQueryCriteria result SQL: {}", criteria.getCriteriaObject());
         return criteria;
     }
 
@@ -199,7 +198,8 @@ public class MongoBbQuerySqlBuildService {
      * @throws InvocationTargetException
      * @throws IllegalAccessException
      */
-    private Map<String, Object> getBeanToMap(Object obj) throws IntrospectionException, InvocationTargetException, IllegalAccessException{
+    private Map<String, Object> getBeanToMap(Object obj) throws IntrospectionException, 
+            InvocationTargetException, IllegalAccessException{
         Map<String, Object> map = new HashMap<>();
         BeanInfo beanInfo = Introspector.getBeanInfo(obj.getClass());
         PropertyDescriptor[] propertyDescriptors = beanInfo.getPropertyDescriptors();
@@ -215,7 +215,8 @@ public class MongoBbQuerySqlBuildService {
         return map;
     }
 
-    private void splicingCriteria(Criteria criteria, MongodbFieldDTO mongodbFieldDTO, Map<String, AppointFieldTableDTO> appointFieldMap) {
+    private void splicingCriteria(Criteria criteria, MongodbFieldDTO mongodbFieldDTO, 
+                                  Map<String, AppointFieldTableDTO> appointFieldMap) {
         String key = mongodbFieldDTO.getKey();
         Object value = mongodbFieldDTO.getValue();
         Class<?> fieldType = mongodbFieldDTO.getFieldType();
@@ -223,10 +224,10 @@ public class MongoBbQuerySqlBuildService {
         String appointField = mongodbFieldDTO.getAppointField();
         //不填值，除了list类型默认是in，其余都是默认is
         if (Objects.equals(model, MongoDbField.Model.DEFAULT)) {
-            if (fieldType != List.class) {
-                criteria.and(key).is(value);
+            if (fieldType == List.class || fieldType == Set.class) {
+                criteria.and(key).in(fieldType == List.class ? (List)value : (Set)value);
             } else {
-                criteria.and(key).in(value);
+                criteria.and(key).is(value);
             }
         } else {
             //指定属性值存在的大于等于单独进行拼接
@@ -238,7 +239,8 @@ public class MongoBbQuerySqlBuildService {
         }
     }
 
-    private void statisticAppointFieldCriteria(Object value, MongoDbField.Model model, String appointField, Map<String, AppointFieldTableDTO> appointFieldMap) {
+    private void statisticAppointFieldCriteria(Object value, MongoDbField.Model model, String appointField, 
+    Map<String, AppointFieldTableDTO> appointFieldMap) {
 
         boolean gtOrGte = Objects.equals(model, MongoDbField.Model.GT) || Objects.equals(model, MongoDbField.Model.GTE);
         boolean ltOrLte = Objects.equals(model, MongoDbField.Model.LT) || Objects.equals(model, MongoDbField.Model.LTE);
@@ -267,7 +269,7 @@ public class MongoBbQuerySqlBuildService {
                 tableDTO.setStartValue(value);
                 appointFieldMap.put(appointField, tableDTO);
             } else if (ltOrLte) {
-                tableDTO.setEndValue(model);
+                tableDTO.setEndModel(model);
                 tableDTO.setEndValue(value);
                 appointFieldMap.put(appointField, tableDTO);
             }
@@ -278,14 +280,31 @@ public class MongoBbQuerySqlBuildService {
         switch (model) {
             case IS:
                 criteria.and(key).is(value);
+                break;
             case NE:
                 criteria.and(key).ne(value);
+                break;
             case IN:
                 criteria.and(key).in(value);
+                break;
             case NIN:
                 criteria.and(key).nin(value);
+                break;
             case REGEX:
                 criteria.and(key).regex((Pattern) value);
+                break;
+            case GT:
+                criteria.and(key).gt(value);
+                break;
+            case GTE:
+                criteria.and(key).gte(value);
+                break;
+            case LT:
+                criteria.and(key).lt(value);
+                break;
+            case LTE:
+                criteria.and(key).lte(value);
+                break;
             default:
         }
     }
@@ -321,6 +340,9 @@ package com.sf.retail.order.dto;
 import com.sf.retail.common.annotation.MongoDbField;
 import lombok.Data;
 
+import java.util.List;
+import java.util.Set;
+
 /**
  * @Auther xiechuandong
  * @Date 2022/11/9
@@ -332,11 +354,17 @@ public class MongoQueryDTO {
     @MongoDbField
     private String orderSn;
 
-    @MongoDbField(appointField = "orgId", model = MongoDbField.Model.GT)
+    @MongoDbField(appointField = "oneOrgId", model = MongoDbField.Model.GT)
     private Long oneOrgIdStart;
 
-    @MongoDbField(appointField = "orgId", model = MongoDbField.Model.LT)
+    @MongoDbField(appointField = "oneOrgId", model = MongoDbField.Model.LTE)
     private Long oneOrgIdEnd;
+
+//    @MongoDbField
+//    private List<Integer> status;
+
+    @MongoDbField
+    private Set<Integer> status;
 
 //    @MongoDbField
     private Long orgId;
@@ -357,9 +385,22 @@ public class MongoQueryDTO {
         mongoQueryDTO.setOneOrgIdStart(14444l);
         mongoQueryDTO.setOneOrgIdEnd(172222l);
         mongoQueryDTO.setOrgId(154254l);
+//        List<Integer> list = Arrays.asList(1,2,3,4,5);
+//        mongoQueryDTO.setStatus(list);
+        Set<Integer> set = new HashSet<>();
+        set.add(1);
+        set.add(2);
+        mongoQueryDTO.setStatus(set);
         Criteria criteria = mongoBbQuerySqlBuildService.buildQueryCriteria(mongoQueryDTO);
         ShopOrderDoc shopOrderDoc = shopOrderDao.findOne(Query.query(criteria));
+
         log.info("test:{}", JSON.toJSONString(shopOrderDoc));
+
+        Criteria criteria1 = Criteria.where("orderSn").is("SO1587743601739173889").and("status").in(Arrays.asList(1,2,3,4,5));
+        log.info("qqqqq:{}", criteria1.getCriteriaObject());
+        Query query = Query.query(criteria1);
+        ShopOrderDoc shopOrderDoc1 = shopOrderDao.findOne(query);
+        log.info("aaaaa:{}", shopOrderDoc1);
     }
 ```
 
