@@ -59,10 +59,29 @@ import lombok.Data;
 @Data
 public class MongodbFieldDTO {
 
+    /**
+     * MongoDB字段名
+     */
     private String key;
+
+    /**
+     * 字段值
+     */
     private Object value;
+
+    /**
+     * 字段类型
+     */
     private Class<?> fieldType;
+
+    /**
+     * 执行操作的类型
+     */
     private MongoDbField.Model model;
+
+    /**
+     * 区间值指定mongodb中的字段
+     */
     private String appointField;
 }
 
@@ -79,16 +98,35 @@ import lombok.Data;
 /**
  * @Auther xiechuandong
  * @Date 2022/11/8
- * @Description:
+ * @Description: 区间值构建的DTO
  */
 
 @Data
 public class AppointFieldTableDTO {
 
+    /**
+     * 区间值指定的MongoDB中的字段名称
+     */
     private String appointField;
+
+    /**
+     * 起始值的操作类型
+     */
     private MongoDbField.Model startModel;
+
+    /**
+     * 起始值
+     */
     private Object startValue;
+
+    /**
+     * 结束值的操作类型
+     */
     private MongoDbField.Model endModel;
+
+    /**
+     * 结束值
+     */
     private Object endValue;
 }
 
@@ -135,7 +173,8 @@ public class MongoBbQuerySqlBuildService {
      * 对于属于区间值的字段，在@MongoDbField注解上添加appointField属性值，指定要查询的字段名，并添加model，如gt，lt等
      * 然后调用buildQueryCriteria方法即可
      */
-    
+
+
     public Criteria buildQueryCriteria(Object obj) {
         if (obj == null) {
             throw new RuntimeException("model is null");
@@ -198,7 +237,7 @@ public class MongoBbQuerySqlBuildService {
      * @throws InvocationTargetException
      * @throws IllegalAccessException
      */
-    private Map<String, Object> getBeanToMap(Object obj) throws IntrospectionException, 
+    private Map<String, Object> getBeanToMap(Object obj) throws IntrospectionException,
             InvocationTargetException, IllegalAccessException{
         Map<String, Object> map = new HashMap<>();
         BeanInfo beanInfo = Introspector.getBeanInfo(obj.getClass());
@@ -215,7 +254,7 @@ public class MongoBbQuerySqlBuildService {
         return map;
     }
 
-    private void splicingCriteria(Criteria criteria, MongodbFieldDTO mongodbFieldDTO, 
+    private void splicingCriteria(Criteria criteria, MongodbFieldDTO mongodbFieldDTO,
                                   Map<String, AppointFieldTableDTO> appointFieldMap) {
         String key = mongodbFieldDTO.getKey();
         Object value = mongodbFieldDTO.getValue();
@@ -240,8 +279,7 @@ public class MongoBbQuerySqlBuildService {
     }
 
     private void statisticAppointFieldCriteria(Object value, MongoDbField.Model model, String appointField, 
-    Map<String, AppointFieldTableDTO> appointFieldMap) {
-
+                                               Map<String, AppointFieldTableDTO> appointFieldMap) {
         boolean gtOrGte = Objects.equals(model, MongoDbField.Model.GT) || Objects.equals(model, MongoDbField.Model.GTE);
         boolean ltOrLte = Objects.equals(model, MongoDbField.Model.LT) || Objects.equals(model, MongoDbField.Model.LTE);
         //校验appointFieldMap是否已经存在该指定值
@@ -375,7 +413,7 @@ public class MongoQueryDTO {
 ② 添加测试接口
 
 ```java
-@Autowired
+    @Autowired
     private MongoBbQuerySqlBuildService mongoBbQuerySqlBuildService;
 
     @Test
